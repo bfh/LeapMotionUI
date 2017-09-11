@@ -5,7 +5,9 @@ import java.awt.image.BufferedImage;
 import com.leapmotion.leap.Controller;
 import com.leapmotion.leap.Frame;
 import com.leapmotion.leap.Gesture;
+import com.leapmotion.leap.GestureList;
 import com.leapmotion.leap.Hand;
+import com.leapmotion.leap.Vector;
 
 /**
  * @author lite
@@ -33,11 +35,27 @@ public class LeapObserver {
 	private static boolean isConnected() {
 		return controller.isConnected();
 	}
-	private static boolean isValid() {
+	public static boolean isValid() {
 		return controller.frame().isValid();
 	}
 	public static boolean imagesAvaible() {
 		return isConnected() && isValid() && !controller.frame().images().isEmpty();
+	}
+	public static int handsCount() {
+		return controller.frame().hands().count();
+	}
+	public static Vector getTranslation() {
+		return controller.frame().translation(controller.frame(1));
+	}
+	public static Gesture getSwipe() {
+		for(Gesture g : controller.frame().gestures()) {
+			if(g.type().equals(Gesture.Type.TYPE_SWIPE))
+					return g;
+		}
+		return Gesture.invalid();
+	}
+	public static boolean gesturesDetected() {
+		return !controller.frame().gestures().isEmpty();
 	}
 	/**
 	 * @return returns the current frame if available, null if not
@@ -80,17 +98,24 @@ public class LeapObserver {
 	}
 	
 	private static boolean handIsPinched(Hand hand) {
-		return hand.pinchStrength() > 0.8f; 
+		return hand.pinchStrength() > 0.98f; 
 	}
-	public static int getPinched() {
-		int id = -1;
+	public static boolean handIsPinched() {
 		for(Hand hand : controller.frame().hands()) {
-			if(handIsPinched(hand)) {
-				id = hand.id();
-			}
+			if(handIsPinched(hand))
+				return true;
 		}
-		return id;
+		return false;
 	}
+//	public static int getPinched() {
+//		int id = -1;
+//		for(Hand hand : controller.frame().hands()) {
+//			if(handIsPinched(hand)) {
+//				id = hand.id();
+//			}
+//		}
+//		return id;
+//	}
 	
 	public static void printData() {
 		Frame frame = controller.frame();
