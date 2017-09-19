@@ -5,7 +5,6 @@ import java.awt.image.BufferedImage;
 import com.leapmotion.leap.Controller;
 import com.leapmotion.leap.Frame;
 import com.leapmotion.leap.Gesture;
-import com.leapmotion.leap.GestureList;
 import com.leapmotion.leap.Hand;
 import com.leapmotion.leap.Vector;
 
@@ -107,15 +106,9 @@ public class LeapObserver {
 		}
 		return false;
 	}
-//	public static int getPinched() {
-//		int id = -1;
-//		for(Hand hand : controller.frame().hands()) {
-//			if(handIsPinched(hand)) {
-//				id = hand.id();
-//			}
-//		}
-//		return id;
-//	}
+	public static boolean isSwiped() {
+		return getSwipe() != Gesture.invalid();
+	}
 	
 	public static void printData() {
 		Frame frame = controller.frame();
