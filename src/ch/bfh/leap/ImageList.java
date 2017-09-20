@@ -26,7 +26,8 @@ public class ImageList {
 		return images.get(index);
 	}
 	public Image next() {
-		if(++index > images.size())
+		index++;
+		if(index > images.size())
 			index = 0;
 		return images.get(index);
 	}

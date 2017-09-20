@@ -46,10 +46,4 @@ public class LeapUI  extends Displayer{
 			//TODO: Handles two hands interactions
 		}
 	}
-	public void updateLeapVision() {
-		if(LeapObserver.imagesAvaible())
-			leapVision.setImage(SwingFXUtils.toFXImage(LeapObserver.getGrayscale(), null));
-		else
-			leapVision.setVisible(false);
-	}
 }
