@@ -18,37 +18,37 @@ import javafx.scene.image.ImageView;
  *
  */
 public class Displayer extends ImageView {
-	private ImageList images;
+	private ExtendedList<Image> images;
 	private ColorAdjust brightness;
 
 	public Displayer() {
 		super();
-		images = new ImageList();
+		images = new ExtendedList<Image>();
 		brightness = new ColorAdjust();
 	}
 
-	public Displayer(String Path) {
-		this(new ArrayList<String>(Arrays.asList(Path)));
+	public Displayer(String path) {
+		this(new ArrayList<String>(Arrays.asList(path)));
 	}
 
-	public Displayer(List<String> Paths) {
+	public Displayer(List<String> paths) {
 		this();
-		for (String Path : Paths) {
+		for (String Path : paths) {
 			if(validPath(Path))
 				addImage(Path);
 		}
 	}
 
-	public void addImage(String Path) {
-		images.addImage(SwingFXUtils.toFXImage(IJ.openImage(Path).getBufferedImage(), null));
+	public void addImage(String path) {
+		images.add(SwingFXUtils.toFXImage(IJ.openImage(path).getBufferedImage(), null));
 	}
 
 	public void addImage(Image image) {
-		images.addImage(image);
+		images.add(image);
 	}
 
 	public void removeImage(int index) {
-		images.removeImage(index);
+		images.remove(index);
 	}
 
 	public void next() {
@@ -60,7 +60,7 @@ public class Displayer extends ImageView {
 	}
 
 	public void current() {
-		setImage(images.get());
+		setImage(images.current());
 	}
 	public void setBrightness(float brightness) {
 		this.brightness.setBrightness(brightness);

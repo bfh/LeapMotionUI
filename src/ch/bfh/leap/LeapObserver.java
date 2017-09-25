@@ -8,6 +8,10 @@ import com.leapmotion.leap.Gesture;
 import com.leapmotion.leap.Hand;
 import com.leapmotion.leap.Vector;
 
+import javafx.scene.image.Image;
+import javafx.scene.image.PixelWriter;
+import javafx.scene.image.WritableImage;
+
 /**
  * @author lite
  *
@@ -31,7 +35,7 @@ public class LeapObserver {
 		c.enableGesture(Gesture.Type.TYPE_SWIPE);
 		return c;
 	}
-	private static boolean isConnected() {
+	public static boolean isConnected() {
 		return controller.isConnected();
 	}
 	public static boolean isValid() {
@@ -65,36 +69,58 @@ public class LeapObserver {
 	/**
 	 * @return The grayscale image as seen by the camera
 	 */
-	public static BufferedImage getGrayscale() {
-		Frame frame = controller.frame();
-		return getGrayscale(frame.images().get(0));
+	public static BufferedImage getGrayscaleBufferedImage() {
+		return getGrayscaleBufferedImage(controller.frame().images().get(0));
+	}
+	public static Image getGrayscaleImage() {
+		return getGrayscaleImage(controller.frame().images().get(0));
 	}
 	
 	/**
 	 * @param image
 	 * @return the conversion of the given image to grayscale
 	 */
-	public static BufferedImage getGrayscale(com.leapmotion.leap.Image image) {		
-		int height = image.height();
-		int width = image.width();
-				
+	public static BufferedImage getGrayscaleBufferedImage(com.leapmotion.leap.Image image) {		
+		return getBufferedImageFromData(image.height(), image.width(), image.data());	
+	}
+	public static Image getGrayscaleImage(com.leapmotion.leap.Image image) {
+		return getImageFromData(image.height(), image.width(), image.data());
+	}
+	
+	private  static BufferedImage getBufferedImageFromData(int height, int width, byte[] data) {	
 		BufferedImage result = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 				
-		byte[] imageData = image.data();
-		
 		for(int i = 0; i < width * height; ++i){
-			int r = (imageData[i] & 0xFF) << 16;
-			int g = (imageData[i] & 0xFF) << 8;
-			int b = imageData[i] & 0xFF;
+			int a = 0xFF << 24;
+			int r = (data[i] & 0xFF) << 16;
+			int g = (data[i] & 0xFF) << 8;
+			int b = data[i] & 0xFF;
 			
 			int x = i % width;
 			int y = (i - x)/width;
 			
-			result.setRGB(x, y, r | g | b);
+			result.setRGB(x, y, a | r | g | b);
 		}
 		
 		return result;		
 	}
+	private static Image getImageFromData(int height, int width, byte[] data) {
+		WritableImage wr = new WritableImage(width, height);
+		PixelWriter pw = wr.getPixelWriter();
+		
+		for(int i = 0; i < width * height; ++i) {
+			int r = (data[i] & 0xFF) << 16;
+			int g = (data[i] & 0xFF) << 8;
+			int b = data[i] & 0xFF;
+			
+			int x = i % width;
+			int y = (i - x)/width;
+			
+			pw.setArgb(x, y, (0xFF << 24) | r | g | b);
+		}
+		return wr;
+	}
+	
 	
 	private static boolean handIsPinched(Hand hand) {
 		return hand.pinchStrength() > 0.98f; 

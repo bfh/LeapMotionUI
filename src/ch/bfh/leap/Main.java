@@ -5,8 +5,12 @@ import javafx.util.Duration;
 import java.awt.Dimension;
 import java.awt.GraphicsDevice;
 import java.awt.GraphicsEnvironment;
+import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+
+import javax.imageio.ImageIO;
 
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
@@ -35,7 +39,7 @@ public class Main extends Application {
 	
 	@Override
 	public void start(Stage stage) throws Exception {
-		files = ImagePrep.select();
+		//files = ImagePrep.select();
 		files = Arrays.asList("/home/lite/Desktop/passerelle_LEAP/DICOM-EDES-DEMO-Manual Orginal.dcm/PA000001/ST000000/SE000002/IM000000.dcm",
 				"/home/lite/Desktop/passerelle_LEAP/DICOM-EDES-DEMO-Manual Orginal.dcm/PA000001/ST000000/SE000002/IM000001.dcm",
 				"/home/lite/Desktop/passerelle_LEAP/DICOM-EDES-DEMO-Manual Orginal.dcm/PA000001/ST000000/SE000002/IM000002.dcm",
@@ -44,6 +48,7 @@ public class Main extends Application {
 				);	
 
 		LeapUI leapUI = new LeapUI(files);
+		leapUI.setVisible(true);
 		
 		ImageView iv = initializeLeapView();
 		
@@ -59,7 +64,7 @@ public class Main extends Application {
 			}
 		};
 		
-		final Duration oneFrameAmt = Duration.millis(10000 / 60);
+		final Duration oneFrameAmt = Duration.millis(1000 / 60);
 		final KeyFrame oneFrame = new KeyFrame(oneFrameAmt, update);
 		final Timeline timeline = new Timeline();
 		timeline.setCycleCount(Animation.INDEFINITE);
@@ -78,7 +83,7 @@ public class Main extends Application {
 	}
 	private void updateLeapVision(ImageView view) {
 		if(LeapObserver.imagesAvaible()) {
-			view.setImage(SwingFXUtils.toFXImage(LeapObserver.getGrayscale(), null));
+			view.setImage(LeapObserver.getGrayscaleImage());
 		}
 		else
 			view.setVisible(false);
@@ -91,8 +96,12 @@ public class Main extends Application {
 		iv.setVisible(true);
 		return iv;
 	}
-	public static void main(String... args) {
-
-		Application.launch(args);
+	public static void main(String... args) throws IOException {
+		
+		do {
+			System.out.println("Not connected");
+		}while(!LeapObserver.isConnected());
+		
+		Application.launch(args);	
 	}
 }

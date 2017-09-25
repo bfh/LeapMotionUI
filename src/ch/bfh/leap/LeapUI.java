@@ -9,11 +9,8 @@ import javafx.scene.image.ImageView;
 
 public class LeapUI  extends Displayer{
 
-	private ImageView leapVision;
-
 	public LeapUI(List<String> imagePaths) {
 		super(imagePaths);
-		leapVision = new ImageView();
 		current();
 	}
 	public void handleLeapData() {
@@ -32,14 +29,11 @@ public class LeapUI  extends Displayer{
 
 				Gesture g = LeapObserver.getSwipe();
 				if (g.isValid()) {
-					if (g.state().equals(Gesture.State.STATE_START)) {
-
-						float d = LeapObserver.getTranslation().getX();
-						if (d > 0)
-							previous();
-						if (d < 0)
-							next();
-					}
+					float d = LeapObserver.getTranslation().getX();
+					if (d > 0)
+						previous();
+					if (d < 0)
+						next();
 				}
 			}					
 		} else {
