@@ -132,7 +132,7 @@ public class LeapObserver {
 		}
 		return false;
 	}
-	public static boolean isSwiped() {
+	public static boolean swipeExists() {
 		return getSwipe() != Gesture.invalid();
 	}
 	
