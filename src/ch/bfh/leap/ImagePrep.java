@@ -1,6 +1,7 @@
 package ch.bfh.leap;
 
 import java.io.File;
+import java.io.FilenameFilter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -10,9 +11,12 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ListView;
 import javafx.scene.layout.GridPane;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
 import javafx.stage.Stage;
+
+import ij.plugin.DICOM;
 
 public class ImagePrep {
 	private static List<File> files = new ArrayList<File>();
@@ -26,6 +30,8 @@ public class ImagePrep {
 		
 		final FileChooser fileChooser = new FileChooser();
 		fileChooser.getExtensionFilters().add(new ExtensionFilter("DICOM Files", "*.dcm"));
+		
+		final DirectoryChooser dirChooser = new DirectoryChooser();
 		
 		final ListView<String> listView = new ListView<String>(names);
 		listView.setItems(names);
@@ -51,6 +57,18 @@ public class ImagePrep {
 			}
 		});
 		
+		final Button openButton = new Button("Open...");
+		openButton.setOnAction(e-> {
+			File dir = dirChooser.showDialog(window);
+			for(File file : dir.listFiles()) {
+				if(file.getName().contains(".dcm")) {
+					files.add(file);
+					names.add(file.getName());
+				}
+			}
+			
+		});
+		
 		final Button removeButton = new Button("Remove");
 		removeButton.setOnAction(e -> {
 			List<String> selected = listView.getSelectionModel().getSelectedItems();
@@ -72,8 +90,9 @@ public class ImagePrep {
 		GridPane.setConstraints(addMultipleButton, 0,2);
 		GridPane.setConstraints(removeButton, 0,3);
 		GridPane.setConstraints(startButton, 1,4);
+		GridPane.setConstraints(openButton, 1, 2);
 	
-		pane.getChildren().addAll(listView, addButton, addMultipleButton, removeButton, startButton);
+		pane.getChildren().addAll(listView, addButton, addMultipleButton, removeButton, startButton, openButton);
 		Scene scene = new Scene(pane);
 		window.setScene(scene);
 		window.showAndWait();

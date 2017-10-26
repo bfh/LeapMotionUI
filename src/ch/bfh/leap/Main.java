@@ -13,7 +13,10 @@ import java.util.List;
 import javax.imageio.ImageIO;
 
 import com.leapmotion.leap.Gesture;
+import com.leapmotion.leap.Hand;
+import com.leapmotion.leap.Vector;
 
+import ij.IJ;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -21,6 +24,7 @@ import javafx.application.Application;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
+import javafx.geometry.Point2D;
 import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -33,13 +37,7 @@ import javafx.stage.Stage;
 public class Main extends Application {
 	private static List<String> files;
 
-	// Handling the time
-	private static long time = System.nanoTime();
-	private static long previousTime = time;
-
-	private static boolean handlingHand = false;
-
-	private static Dimension dim = getDimension();
+	private static Dimension DIM = getDimension();
 
 	private static Dimension getDimension() {
 		GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
@@ -47,33 +45,37 @@ public class Main extends Application {
 		return dim;
 	}
 
+	private static double leapMod = 200;
+
 	@Override
 	public void start(Stage stage) throws Exception {
-		// files = ImagePrep.select(); //Select the images to be displayed
+		//files = ImagePrep.select(); //Select the images to be displayed
 		files = Arrays.asList(
 				"/home/lite/Desktop/passerelle_LEAP/DICOM-EDES-DEMO-Manual Orginal.dcm/PA000001/ST000000/SE000002/IM000000.dcm",
 				"/home/lite/Desktop/passerelle_LEAP/DICOM-EDES-DEMO-Manual Orginal.dcm/PA000001/ST000000/SE000002/IM000001.dcm",
 				"/home/lite/Desktop/passerelle_LEAP/DICOM-EDES-DEMO-Manual Orginal.dcm/PA000001/ST000000/SE000002/IM000002.dcm",
 				"/home/lite/Desktop/passerelle_LEAP/DICOM-EDES-DEMO-Manual Orginal.dcm/PA000001/ST000000/SE000002/IM000003.dcm",
 				"/home/lite/Desktop/passerelle_LEAP/DICOM-EDES-DEMO-Manual Orginal.dcm/PA000001/ST000000/SE000002/IM000004.dcm");
-		List<Image> images = Arrays.asList(new Image("img_01.png"), new Image("img_02.png"), new Image("img_03.png"),
-				new Image("img_04.png"), new Image("img_05.png"), new Image("img_06.png"));
+		// List<Image> images = Arrays.asList(new Image("img_01.png"), new
+		// Image("img_02.png"), new Image("img_03.png"),
+		// new Image("img_04.png"), new Image("img_05.png"), new Image("img_06.png"));
 
-		ScrollView sv = new ScrollView();
-		// sv.loadImages(files);
-		sv.addImages(images);
+		ScrollView sv = new ScrollView(DIM);
+		sv.loadImages(files);
+
+		LeapObserver leap = new LeapObserver();
+
+		LeapUX l = new LeapUX(sv,
+				SwingFXUtils.toFXImage(IJ
+						.openImage("/home/lite/eclipse-workspace/LeapMotionUI/src/ch/bfh/leap/target_cross.png").getBufferedImage(), null),
+				DIM, leap, leapMod);
+		Leap3D l3d = new Leap3D();
 
 		EventHandler<ActionEvent> update = new EventHandler<ActionEvent>() {
 			public void handle(ActionEvent event) {
-
-				previousTime = time;
-				time = System.nanoTime();
-
-				double currentTime = ((double) (time - previousTime)) / Math.pow(10, 9);
-
-				sv.update(currentTime);
-
-				updateLeapView(sv, currentTime);
+				l3d.update(leap);
+				leap.update();
+				l.update();
 			}
 		};
 
@@ -83,87 +85,21 @@ public class Main extends Application {
 		timeline.setCycleCount(Animation.INDEFINITE);
 		timeline.getKeyFrames().add(oneFrame);
 
-		BorderPane bp = new BorderPane();
-		bp.setCenter(sv);
-
-		Button b1 = new Button("Left");
-		b1.setOnAction(e -> sv.scrollLeft());
-
-		Button b2 = new Button("Right");
-		b2.setOnAction(e -> sv.scrollRight());
-
-		HBox box = new HBox();
-		box.getChildren().addAll(b1, b2);
-		bp.setBottom(box);
-
 		Group root = new Group();
-		Scene scene = new Scene(root);
-		root.getChildren().add(bp);
+		Scene scene1 = new Scene(root);
+		root.getChildren().addAll(l.getChildren());
+
+		Scene scene2 = l3d.getScene();
 
 		stage.setTitle("DICOM Viewer");
-		stage.setScene(scene);
+		stage.setScene(scene2);
+		stage.setFullScreen(true);
 
 		timeline.play();
 		stage.show();
-
 	}
 
-	public static void main(String... args) throws IOException {
+	public static void main(String... args) {
 		Application.launch(args);
-	}
-
-	private static void updateLeapView(ScrollView sv, double time) {
-		if (LeapObserver.isConnected()) {
-			if (LeapObserver.handsCount() > 0) {
-				handlingHand = true;
-
-				Gesture g = LeapObserver.getSwipe();
-				if (g != null && g.isValid()) {
-					System.out.println(sv.isScrolling());
-					float temp = g.hands().get(0).palmPosition().getX();
-					if (temp > 0) {
-						sv.scrollRight();
-					} else if (temp < 0) {						
-						sv.scrollLeft();
-					}
-					System.out.println(sv.isScrolling());
-				}
-				if (!sv.isScrolling()) {
-					double d = LeapObserver.getFrame().hands().get(0).palmPosition().getX() * 7;
-					sv.setShift(d);					
-				}
-			}
-			if (!sv.isScrolling() && handlingHand && LeapObserver.handsCount() == 0) {
-				sv.flush(time);
-				handlingHand = false;
-			}
-		}
-		// // Checking for hands
-		// if (LeapObserver.handsCount() < 2) {
-		//
-		// // Checking for pinch
-		// if (LeapObserver.handIsPinched()) {
-		// float d = LeapObserver.getTranslation().getX();
-		//
-		// System.out.println("Translation with pinched movement: " + d);
-		//
-		// } else if (LeapObserver.isSwiped()) {
-		// // Handles swipe detection
-		//
-		// Gesture g = LeapObserver.getSwipe();
-		// if (g.isValid()) {
-		// float d = LeapObserver.getTranslation().getX();
-		// if (d > 0)
-		// sv.scrollLeft();
-		// if (d < 0)
-		// sv.scrollRight();
-		// }
-		// } else {
-		// double d = LeapObserver.getFrame().hands().get(0).palmPosition().getX()*300;
-		// System.out.println("Shifting to " + d);
-		// sv.setShift(d);
-		// }
-		// } else {
-		// // TODO: Handles two hands interactions
 	}
 }

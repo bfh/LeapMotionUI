@@ -7,6 +7,7 @@ import java.util.List;
 
 import ij.IJ;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.geometry.Point2D;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.Pane;
@@ -16,18 +17,16 @@ import javafx.scene.layout.Pane;
  *
  */
 public class ScrollView extends Pane {
-	private static double PERCENTAGE = 0.55d; // By what percentage the view should have shifted i. e.
-												// how much of the next image is visible on screen
 
-	private List<ImageView> images;
+	private List<ExImageView> images;
 	private STATE state;
 
-	private SimpleScroll scroll;
-	private double previousShift;
-	private double scrollSpeed;
-	private int index;
+	private SimpleScroll scroll; // Handles the scroll animation
 
-	Dimension screen;
+	private int index;
+	protected Dimension dim;
+	
+	private double timeSinceZoom;
 
 	/**
 	 * Initializes a new ScrollView
@@ -37,13 +36,13 @@ public class ScrollView extends Pane {
 	 * @param height
 	 *            the height of the ScrollView
 	 */
-	public ScrollView() {
+	public ScrollView(Dimension dim) {
 		state = STATE.Initializing;
 
-		images = new ArrayList<ImageView>();
-		index = 0;
-		previousShift = 0;
-		scrollSpeed = 0;
+		images = new ArrayList<ExImageView>();
+		this.dim = dim;
+		scroll = new SimpleScroll(0, 0, dim.getWidth());
+		timeSinceZoom = 0;
 	}
 
 	/**
@@ -60,6 +59,7 @@ public class ScrollView extends Pane {
 	public ScrollView(List<String> paths) {
 		loadImages(paths);
 		iniView();
+		scroll = new SimpleScroll(0, 0, dim.getWidth());
 	}
 
 	private void iniView() {
@@ -69,6 +69,10 @@ public class ScrollView extends Pane {
 			images.get(0).setVisible(true);
 			state = STATE.Stationary;
 		}
+		int width = (int)getCurrentWidth();
+		int height = (int)getCurrentHeight();
+		
+		dim = new Dimension(width, height);
 	}
 
 	/**
@@ -100,7 +104,7 @@ public class ScrollView extends Pane {
 	 */
 	public void addImages(List<Image> images) {
 		for (Image i : images) {
-			ImageView iv = getIV(i);
+			ExImageView iv = getIV(i);
 			this.images.add(iv);
 			this.getChildren().add(iv);
 		}
@@ -118,90 +122,200 @@ public class ScrollView extends Pane {
 		addImages(Arrays.asList(image));
 	}
 
-	private ImageView getIV(Image image) {
-		ImageView view = new ImageView(image);
+	private ExImageView getIV(Image image) {
+		ExImageView view = new ExImageView(dim, image);
 		view.setVisible(false);
 		view.setY(0);
 		return view;
 	}
 
 	/**
-	 * @param time
-	 *            Time in seconds
+	 * @return Whether or not the current image is zoomed
 	 */
-	public void update(double time) {
-		switch (state) {
-		case Scrolling: {
-			scroll.update(time);
-			setShift(scroll.getX());
-			
-			if(getShift()==0 && scroll.isFinished())
-				state = STATE.Stationary;
-		}
-			break;
-		default:
-			break;
-		}
+	public boolean isZoomed() {
+		return getCurrent().isZoomed();
 	}
-	public void flush(double time) {
-		if(getShift() == 0 || getCurrent().getImage().getWidth() == 0)
-			return;
-		state = STATE.Scrolling;
-		double shift = getShift();
-		double width = getCurrent().getImage().getWidth();
-		double percentage = shift / width;
-		double speed = scrollSpeed / time;
-		
-		if(percentage > 0) {
-			if(percentage > PERCENTAGE || speed > 40) {
-				scroll = SimpleScroll.getScroll(speed, shift, width);
-			} else {
-				scroll = SimpleScroll.getScrollToZero(speed, shift);
-			}			
-		} else if (percentage < 0) {
-			if(-percentage > PERCENTAGE || speed > -40) {			
-				scroll = SimpleScroll.getScroll(speed, shift, -width);
-			} else {
-				scroll = SimpleScroll.getScrollToZero(speed, shift);
-			}
+
+	/**
+	 * Zoom the image in on a specific point
+	 * 
+	 * @param zoom
+	 *            The degree by which the image will be scaled
+	 * @param point
+	 *            The center point of the zoom
+	 */
+	public void zoom(double zoom, Point2D point) {
+		if (state.equals(STATE.Stationary))
+			getCurrent().zoom(zoom, point);
+		timeSinceZoom = 0;
+	}
+
+	public double getZoomX() {
+		ExImageView current = getCurrent();
+		if (current.isZoomed())
+			return current.getScaleX();
+		return 1.0;
+	}
+
+	public double getZoomY() {
+		ExImageView current = getCurrent();
+		if (current.isZoomed())
+			return current.getScaleY();
+		return 1.0;
+	}
+
+	public Dimension getDimension() {
+		return dim;
+	}
+	
+	/**
+	 * Moves the current picture by a certain delta
+	 * 
+	 * @param delta
+	 *            How much the current picture will be moved
+	 */
+	public void move(Point2D delta) {
+		ExImageView view = getCurrent();
+		if (state.equals(STATE.Stationary)) {
+			view.move(delta);
 		}
 	}
 
 	/**
+	 * Rotates the current image by a certain degree
+	 * 
+	 * @param rot
+	 *            degree of rotation
+	 */
+	public void rotatePicture(double rot) {
+		if (state.equals(STATE.Stationary)) {
+			getCurrent().setRotate(rot);
+		}
+	}
+
+	/**
+	 * @param d
+	 *            The adjusted Brightness
+	 */
+	public void setBrightness(double d) {
+		if (state.equals(STATE.Stationary) || isZoomed())
+			getCurrent().setBrightness(d);
+	}
+
+	/**
+	 * @param d
+	 *            By how much to adjust the Brightness of the current picture
+	 */
+	public void changeBrightnessBy(double d) {
+		if (state.equals(STATE.Stationary))
+			getCurrent().setBrightness(getCurrent().getBrightness() + d);
+	}
+
+	/**
+	 * Resets the current image to it's initial status
+	 */
+	public void reset() {
+		if (state.equals(STATE.Stationary))
+			getCurrent().reset();
+	}
+	
+	public double getCurrentWidth() {
+		return getCurrent().getLayoutBounds().getWidth();
+	}
+	
+	public double getCurrentHeight() {
+		return getCurrent().getLayoutBounds().getHeight();
+	}
+	
+	public double getCurrentX() {
+		return getLayoutX();
+	}
+	public double getCurrentY() {
+		return getLayoutY();
+	}
+
+	/**
+	 * Updates actions such as scrolling
+	 * 
+	 * @param time
+	 *            Time in seconds
+	 */
+	public void update(double time) {
+		if(isZoomed()) {
+			if(timeSinceZoom > 0.5 && getCurrent().getZoom() > 0.95) {
+				getCurrent().resetZoom();
+			} else {
+				timeSinceZoom += time;
+			}
+		} else if (isScrolling()) {
+			scroll.update(time);
+			setShift(scroll.getX());
+
+			if (getShift() == 0 && scroll.isFinished())
+				state = STATE.Stationary;
+		}
+		
+	}
+
+	public void flush(double time) {
+		if (isZoomed() || getShift() == 0 || getCurrent().getX() == 0)
+			return;
+		state = STATE.Scrolling;
+		double shift = getShift();
+		double width = dim.getWidth();
+
+		if (shift > width / 2) {
+			scroll = new SimpleScroll(shift, width, dim.getWidth());
+		} else if (shift < -width / 2) {
+			scroll = new SimpleScroll(shift, -width, dim.getWidth());
+		} else {
+			scroll = SimpleScroll.getScrollToZero(shift, dim.getWidth());
+		}
+	}
+
+
+	public void scrollTo(double shift, double t) {
+		state = STATE.Scrolling;
+		double speed = (shift-getShift())/t;
+		scroll = new SimpleScroll(getShift(), shift, speed);
+	}
+	
+	/**
 	 * Initiates a scroll sequence towards the left side
 	 */
 	public void scrollLeft() {
-		state = STATE.Scrolling;
-		scroll = SimpleScroll.getScroll(getShift(), -getCurrent().getImage().getWidth());
-	}
-	public void scrollLeft(double initialSpeed) {
-		state  = STATE.Scrolling;
-		scroll = SimpleScroll.getScroll(initialSpeed, getShift(), -getCurrent().getImage().getWidth());
+		if (!isZoomed()) {
+			state = STATE.Scrolling;
+			scroll = new SimpleScroll(getShift(), -dim.getWidth(), dim.getWidth());
+		}
 	}
 
 	/**
 	 * Initiates a scroll sequences towards the right side
 	 */
 	public void scrollRight() {
-		state = STATE.Scrolling;
-		scroll = SimpleScroll.getScroll(getShift(), getCurrent().getImage().getWidth());
+		if (!isZoomed()) {
+			state = STATE.Scrolling;
+			scroll = new SimpleScroll(getShift(), dim.getWidth(), dim.getWidth());
+		}
 	}
-	public void scrollRight(double initialSpeed) {
-		state = STATE.Scrolling;
-		scroll = SimpleScroll.getScroll(initialSpeed, getShift(), getCurrent().getImage().getWidth());
-	}
+
 	/**
 	 * Shifts the view to an absolute position
+	 * 
+	 * Updates the positions of all visible images
 	 * 
 	 * @param shift
 	 *            The distance from the central picture to the left hand border
 	 */
-	public void setShift(double shift) {
-		previousShift = getShift();
+	private void setShift(double shift) {
+		if (isZoomed())
+			return;
+
 		if (shift == 0) {
 			getCurrent().setX(0);
-			getNext().setX(getCurrent().getImage().getWidth());
-			getPrev().setX(-getPrev().getImage().getWidth());
+			getNext().setX(dim.getWidth());
+			getPrev().setX(-dim.getWidth());
 			return;
 		}
 
@@ -210,32 +324,37 @@ public class ScrollView extends Pane {
 
 		ImageView next = getNext();
 		ImageView prev = getPrev();
-		
-		prev.setX(-current.getImage().getWidth() + shift);
-		next.setX(current.getImage().getWidth() + shift);
-		
-		
-		if (current.getX() >= current.getImage().getWidth()) {
+
+		prev.setX(-dim.getWidth() + shift);
+		next.setX(dim.getWidth() + shift);
+
+		if (current.getX() >= dim.getWidth()) {
 			getNext().setVisible(false);
 			previous();
 
-			getPrev().setX(-getCurrent().getImage().getWidth() + getShift());
+			getPrev().setX(-dim.getWidth() + getShift());
 			getPrev().setVisible(true);
-		} else if (-current.getX() >= current.getImage().getWidth()) {
+		} else if (-current.getX() >= dim.getWidth()) {
 			getPrev().setVisible(false);
 			next();
 
-			getNext().setX(getCurrent().getImage().getWidth() + getShift());
+			getNext().setX(dim.getWidth() + getShift());
 			getNext().setVisible(true);
 		}
-		
+
 		setVisible(getCurrent());
 		setVisible(getNext());
 		setVisible(getPrev());
-		scrollSpeed = getShift() - previousShift;
 	}
+
+	public void shiftTo(double shift) {
+		if (scroll.isFinished()) {
+			setShift(shift);
+		}
+	}
+
 	private void setVisible(ImageView view) {
-		if(!view.isVisible())
+		if (!view.isVisible())
 			view.setVisible(true);
 	}
 
@@ -263,15 +382,15 @@ public class ScrollView extends Pane {
 		setShift(getShift() + shift);
 	}
 
-	private ImageView getNext() {
+	private ExImageView getNext() {
 		return images.get(getBounded(index + 1));
 	}
 
-	private ImageView getPrev() {
+	private ExImageView getPrev() {
 		return images.get(getBounded(index - 1));
 	}
 
-	private ImageView getCurrent() {
+	private ExImageView getCurrent() {
 		return images.get(index);
 	}
 
@@ -298,53 +417,23 @@ public class ScrollView extends Pane {
 	}
 
 	private static enum STATE {
-		Initializing, Scrolling, Shifting, Stationary, Flushing, Centering, None;
+		Initializing, Scrolling, Stationary, Shifting, None;
 	}
 
 	private static class SimpleScroll {
-		private static final double defaultAcc = 150;
-		private static final double defaultSpeed =200;
-		
-		private double x;
-		private double acceleration;
 		private double speed;
+		private double x;
 		private double to;
 
-
-		private static SimpleScroll getEmpty() {
-			return new SimpleScroll(0.0,0.0,0.0,0.0);
-		}
-
-		private SimpleScroll(double acceleration, double initialSpeed, double from, double to) {
+		public SimpleScroll(double from, double to, double speed) {
 			x = from;
-			speed = initialSpeed;
 			this.to = to;
-			this.acceleration = acceleration;
+			this.speed = speed;
+
 		}
 
-		public static final SimpleScroll getScrollToZero(double from) {
-			return getScroll(from, 0.0);
-		}
-
-		public static final SimpleScroll getScrollToZero(double initialSpeed, double from) {
-			return getScroll(initialSpeed, from, 0.0);
-		}
-
-		public static final SimpleScroll getScroll(double from, double to) {
-			if (from > to)
-				return getScroll(-defaultSpeed, from, to);
-			if (from < to)
-				return getScroll(defaultSpeed, from, to);
-			return getEmpty();
-		}
-
-		public static final SimpleScroll getScroll(double initialSpeed, double from, double to) {
-			if (from > to) {
-				return new SimpleScroll(-defaultAcc, initialSpeed, from, to);
-			} else if (from < to) {
-				return new SimpleScroll(defaultAcc, initialSpeed, from, to);
-			}
-			return getEmpty();
+		public static final SimpleScroll getScrollToZero(double from, double speed) {
+			return new SimpleScroll(from, 0.0, speed);
 		}
 
 		/**
@@ -355,22 +444,35 @@ public class ScrollView extends Pane {
 		 */
 		public void update(double time) {
 			if (x != to) {
-				speed = speed + acceleration * time;
-				x += speed * time;
-				if (acceleration > 0 && x > to) {
+				double dist = to - x; // Distance to travel
+				double diff = time * speed;
+
+				if (diff > Math.abs(dist)) {
 					x = to;
-				} else if (acceleration < 0 && x < to) {
-					x = to;
+					return;
 				}
-			}			
+
+				if (dist > 0) {
+					x += diff;
+				} else if (dist < 0) {
+					x -= diff;
+				}
+			}
 		}
 
+		/**
+		 * @return X Position
+		 */
 		public double getX() {
 			return x;
 		}
+
+		/**
+		 * @return Whether or not the Scroll has reached its finishing line
+		 */
 		public boolean isFinished() {
 			return x == to;
 		}
+		
 	}
 }
-
